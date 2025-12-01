@@ -12,8 +12,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // Quest 도메인 예외 처리
-    @ExceptionHandler(QuestException.class)
+    // 도메인 예외 처리
+    @ExceptionHandler(ApplicationException.class)
     public ResponseEntity<ErrorResponse> handleQuestException(QuestException e) {
         return ResponseEntity
                 .status(e.getErrorCode().status())
@@ -26,11 +26,11 @@ public class GlobalExceptionHandler {
         String message = e.getBindingResult().getFieldErrors().stream()
                 .findFirst()
                 .map(fieldError -> fieldError.getField() + " : " + fieldError.getDefaultMessage())
-                .orElse("잘못된 요청입니다.");
+                .orElse(GlobalErrorCode.VALIDATION_ERROR.message());
 
         return ResponseEntity
-                .badRequest()
-                .body(new ErrorResponse("VALIDATION_ERROR", message));
+                .status(GlobalErrorCode.VALIDATION_ERROR.status())
+                .body(new ErrorResponse(GlobalErrorCode.VALIDATION_ERROR.code(), message));
     }
 
     // PathVariable / RequestParam 검증 실패 처리
@@ -39,27 +39,28 @@ public class GlobalExceptionHandler {
         String message = e.getConstraintViolations().stream()
                 .findFirst()
                 .map(v -> v.getPropertyPath() + " : " + v.getMessage())
-                .orElse("잘못된 요청입니다.");
+                .orElse(GlobalErrorCode.VALIDATION_ERROR.message());
 
         return ResponseEntity
-                .badRequest()
-                .body(new ErrorResponse("VALIDATION_ERROR", message));
+                .status(GlobalErrorCode.VALIDATION_ERROR.status())
+                .body(new ErrorResponse(GlobalErrorCode.VALIDATION_ERROR.code(), message));
     }
 
     // JSON 파싱 오류 처리
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleJsonParseError(HttpMessageNotReadableException e) {
         return ResponseEntity
-                .badRequest()
-                .body(new ErrorResponse("INVALID_JSON", "요청 본문을 읽을 수 없습니다. JSON 형식을 확인해주세요."));
+                .status(GlobalErrorCode.INVALID_JSON.status())
+                .body(new ErrorResponse(GlobalErrorCode.INVALID_JSON.code(), GlobalErrorCode.INVALID_JSON.message()));
     }
 
     // 필수 요청 파라미터 누락 처리
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ErrorResponse> handleMissingParameter(MissingServletRequestParameterException e) {
+        String message = e.getParameterName() + " 파라미터가 필요합니다.";
         return ResponseEntity
-                .badRequest()
-                .body(new ErrorResponse("MISSING_PARAMETER", e.getParameterName() + " 파라미터가 필요합니다."));
+                .status(GlobalErrorCode.MISSING_PARAMETER.status())
+                .body(new ErrorResponse(GlobalErrorCode.MISSING_PARAMETER.code(), message));
     }
 
     // 예상치 못한 서버 오류 처리
@@ -67,7 +68,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleUnexpectedException(Exception e) {
         e.printStackTrace();
         return ResponseEntity
-                .status(500)
-                .body(new ErrorResponse("INTERNAL-ERROR", "예기치 못한 오류가 발생했습니다."));
+                .status(GlobalErrorCode.INTERNAL_ERROR.status())
+                .body(new ErrorResponse(GlobalErrorCode.INTERNAL_ERROR.code(), GlobalErrorCode.INTERNAL_ERROR.message()));
     }
 }
